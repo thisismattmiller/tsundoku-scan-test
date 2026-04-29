@@ -134,6 +134,19 @@
       z-index: 10;
     }
     .toast.show { opacity: 1; }
+    .resource-id {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 10;
+    }
     .rescan-btn {
       position: absolute;
       top: 12px;
@@ -163,6 +176,7 @@
   <div id="step-camera" class="step">
     <video id="camera-feed" autoplay playsinline muted></video>
     <button class="rescan-btn" onclick="rescan()">Re-scan QR</button>
+    <div class="resource-id" id="resource-id"></div>
     <div class="flash" id="flash"></div>
     <div class="toast" id="toast"></div>
     <div class="camera-overlay">
@@ -306,6 +320,7 @@
         return;
       }
 
+      document.getElementById("resource-id").textContent = pairingData.resourceId || "";
       showStep("step-camera");
       startCamera();
     }
