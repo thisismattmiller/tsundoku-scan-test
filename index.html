@@ -3,148 +3,155 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Tsundoku Scan — Mobile</title>
+  <title>Tsundoku Scan</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #1a1a2e;
+      background: #000;
       color: #eee;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
     }
-    .header {
-      padding: 16px;
-      text-align: center;
-      background: #16213e;
-    }
-    .header h1 { font-size: 1.2rem; }
-    .header .sub { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
 
     /* Steps */
-    .step { display: none; flex: 1; flex-direction: column; }
-    .step.active { display: flex; }
+    .step { display: none; width: 100%; height: 100%; }
+    .step.active { display: flex; flex-direction: column; }
 
     /* Step 1: QR Scanner */
-    #step-scan { align-items: center; justify-content: center; padding: 20px; }
+    #step-scan {
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      padding: 20px;
+    }
+    #step-scan h1 { font-size: 1.2rem; margin-bottom: 16px; }
     #qr-reader { width: 100%; max-width: 400px; }
     #scan-status { margin-top: 12px; font-size: 0.9rem; color: #aaa; }
 
-    /* Step 2: Camera */
+    /* Step 2: Camera — fullscreen viewfinder */
     #step-camera { position: relative; }
     #camera-feed {
+      position: absolute;
+      top: 0; left: 0;
       width: 100%;
-      flex: 1;
+      height: 100%;
       object-fit: cover;
-      background: #000;
     }
-    .camera-controls {
-      padding: 16px;
+    .camera-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      background: #16213e;
+      gap: 12px;
+      padding: 16px 12px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      background: linear-gradient(transparent, rgba(0,0,0,0.7) 30%);
     }
-    .category-select {
+    .category-row {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;
       justify-content: center;
+      flex-wrap: wrap;
     }
-    .category-btn {
-      background: #2a2a4a;
-      color: #ccc;
-      border: 2px solid transparent;
-      padding: 8px 14px;
+    .cat-btn {
+      background: rgba(255,255,255,0.15);
+      color: #ddd;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      padding: 10px 18px;
       border-radius: 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      transition: transform 0.1s;
+    }
+    .cat-btn:active { transform: scale(0.92); }
+    .cat-btn:disabled { opacity: 0.3; }
+
+    /* TOC page counter */
+    .toc-bar {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .toc-bar.visible { display: flex; }
+    .toc-count {
+      font-size: 0.85rem;
+      color: #fff;
+      background: rgba(59,130,246,0.5);
+      padding: 4px 12px;
+      border-radius: 12px;
+    }
+    .toc-send-btn {
+      background: #22c55e;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 16px;
       font-size: 0.85rem;
       cursor: pointer;
     }
-    .category-btn.selected {
-      border-color: #3b82f6;
-      color: #fff;
-      background: #1e3a5f;
-    }
-    .capture-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
+    .toc-send-btn:disabled { opacity: 0.5; }
+
+    /* Flash overlay for capture feedback */
+    .flash {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: #fff;
-      border: 4px solid #3b82f6;
-      cursor: pointer;
-      align-self: center;
-      position: relative;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.05s;
     }
-    .capture-btn:active { background: #ddd; }
-    .capture-btn:disabled { opacity: 0.4; }
+    .flash.fire { opacity: 0.6; transition: none; }
 
-    /* Step 3: Sending */
-    #step-sending {
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      text-align: center;
-    }
-    #send-status { margin-top: 16px; font-size: 0.9rem; color: #aaa; }
-    #preview-img {
-      max-width: 200px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
-
-    /* Shared */
-    .btn {
-      background: #3b82f6;
+    /* Toast notification */
+    .toast {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
       color: #fff;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-top: 12px;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 10;
     }
-    .btn:disabled { opacity: 0.5; }
-    .paired-info {
-      font-size: 0.8rem;
-      color: #666;
-      text-align: center;
-      padding: 8px;
-    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Tsundoku Scan</h1>
-    <div class="sub" id="header-status">Scan the QR code on your computer</div>
-  </div>
-
   <!-- Step 1: Scan QR code -->
   <div id="step-scan" class="step active">
+    <h1>Tsundoku Scan</h1>
     <div id="qr-reader"></div>
     <div id="scan-status">Point your camera at the QR code</div>
   </div>
 
-  <!-- Step 2: Camera + capture -->
+  <!-- Step 2: Camera — fullscreen -->
   <div id="step-camera" class="step">
     <video id="camera-feed" autoplay playsinline muted></video>
-    <div class="camera-controls">
-      <div class="category-select">
-        <button class="category-btn selected" data-cat="copyright">Copyright Page</button>
-        <button class="category-btn" data-cat="toc">Table of Contents</button>
-        <button class="category-btn" data-cat="back_cover">Back Cover</button>
-        <button class="category-btn" data-cat="summary">Summary</button>
+    <div class="flash" id="flash"></div>
+    <div class="toast" id="toast"></div>
+    <div class="camera-overlay">
+      <div class="category-row">
+        <button class="cat-btn selected" data-cat="copyright" data-multi="false">Copyright</button>
+        <button class="cat-btn" data-cat="toc" data-multi="true">TOC</button>
+        <button class="cat-btn" data-cat="back_cover" data-multi="false">Back Cover</button>
+        <button class="cat-btn" data-cat="cover" data-multi="false">Cover</button>
+        <button class="cat-btn" data-cat="summary" data-multi="false">Summary</button>
       </div>
-      <button class="capture-btn" id="capture-btn" onclick="capturePhoto()"></button>
+      <div class="toc-bar" id="toc-bar">
+        <span class="toc-count" id="toc-count">0 pages</span>
+        <button class="toc-send-btn" id="toc-send-btn" onclick="sendTocBundle()" disabled>Send All</button>
+      </div>
     </div>
-    <div class="paired-info" id="paired-info"></div>
-  </div>
-
-  <!-- Step 3: Sending/Result -->
-  <div id="step-sending" class="step">
-    <img id="preview-img" />
-    <div id="send-status">Sending...</div>
-    <button class="btn" id="another-btn" onclick="goToCamera()" style="display:none">Take Another Photo</button>
   </div>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -153,14 +160,36 @@
     let pairingData = null;
     let camera = null;
     let selectedCategory = "copyright";
+    let isMultiPage = false;
     let qrScanner = null;
+    let tocPages = []; // collected TOC page data URLs
 
-    // Category button selection
-    document.querySelectorAll(".category-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".category-btn").forEach((b) => b.classList.remove("selected"));
+    let capturing = false;
+
+    // Category buttons: tap to capture
+    document.querySelectorAll(".cat-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (capturing || !camera) return;
+
+        const cat = btn.dataset.cat;
+        const multi = btn.dataset.multi === "true";
+
+        // Update selection state
+        selectedCategory = cat;
+        isMultiPage = multi;
+        document.querySelectorAll(".cat-btn").forEach((b) => b.classList.remove("selected"));
         btn.classList.add("selected");
-        selectedCategory = btn.dataset.cat;
+
+        // Show/hide TOC bar
+        const tocBar = document.getElementById("toc-bar");
+        if (multi) {
+          tocBar.classList.add("visible");
+        } else {
+          tocBar.classList.remove("visible");
+        }
+
+        // Capture
+        await capturePhoto();
       });
     });
 
@@ -169,7 +198,30 @@
       document.getElementById(id).classList.add("active");
     }
 
-    // Step 1: Scan QR
+    function showToast(msg, duration = 2000) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), duration);
+    }
+
+    function flashScreen() {
+      const el = document.getElementById("flash");
+      el.classList.add("fire");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.classList.remove("fire");
+        });
+      });
+    }
+
+    function updateTocCount() {
+      document.getElementById("toc-count").textContent =
+        tocPages.length + (tocPages.length === 1 ? " page" : " pages");
+      document.getElementById("toc-send-btn").disabled = tocPages.length === 0;
+    }
+
+    // QR scanning
     async function startQRScanner() {
       qrScanner = new Html5Qrcode("qr-reader");
       try {
@@ -177,19 +229,15 @@
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           onQRScanned,
-          () => {} // ignore scan failures
+          () => {}
         );
       } catch (err) {
-        document.getElementById("scan-status").textContent =
-          "Camera error: " + err;
+        document.getElementById("scan-status").textContent = "Camera error: " + err;
       }
     }
 
     function pair(data) {
       pairingData = data;
-      document.getElementById("header-status").textContent = "Paired!";
-      document.getElementById("paired-info").textContent =
-        "Paired: " + pairingData.connectionId.substring(0, 8) + "...";
       showStep("step-camera");
       startCamera();
     }
@@ -197,10 +245,8 @@
     async function onQRScanned(decodedText) {
       let data;
       try {
-        // Try JSON first (in-app QR scanner)
         data = JSON.parse(decodedText);
       } catch {
-        // Try URL (scanned a link QR code from within the app)
         try {
           const url = new URL(decodedText);
           data = {
@@ -213,58 +259,84 @@
         }
       }
       if (!data.connectionId) return;
-
       await qrScanner.stop();
       qrScanner = null;
       pair(data);
     }
 
-    // Step 2: Camera
+    // Camera
     async function startCamera() {
       const video = document.getElementById("camera-feed");
       camera = new TsundokuCamera(video);
       try {
         await camera.start();
       } catch (err) {
-        document.getElementById("header-status").textContent =
-          "Camera error: " + err.message;
+        showToast("Camera error: " + err.message, 5000);
       }
     }
 
+    // Capture
     async function capturePhoto() {
-      const btn = document.getElementById("capture-btn");
-      btn.disabled = true;
+      capturing = true;
+      document.querySelectorAll(".cat-btn").forEach((b) => b.disabled = true);
+      flashScreen();
 
       const dataUrl = camera.capture(0.85);
 
-      // Show preview
-      document.getElementById("preview-img").src = dataUrl;
-      document.getElementById("send-status").textContent = "Sending...";
-      document.getElementById("another-btn").style.display = "none";
-      showStep("step-sending");
-
-      try {
-        const result = await sendPhoto(
-          pairingData.processUrl,
-          pairingData.connectionId,
-          dataUrl,
-          selectedCategory
-        );
-        document.getElementById("send-status").textContent =
-          result.error ? "Error: " + result.error : "Sent! Result delivered to your computer.";
-      } catch (err) {
-        document.getElementById("send-status").textContent = "Failed: " + err.message;
+      if (isMultiPage) {
+        tocPages.push(dataUrl);
+        updateTocCount();
+        showToast("Page " + tocPages.length + " captured");
+      } else {
+        showToast("Sending...");
+        try {
+          await sendPhoto(
+            pairingData.processUrl,
+            pairingData.connectionId,
+            dataUrl,
+            selectedCategory
+          );
+          showToast("Sent!");
+        } catch (err) {
+          showToast("Failed: " + err.message, 3000);
+        }
       }
 
-      document.getElementById("another-btn").style.display = "";
+      document.querySelectorAll(".cat-btn").forEach((b) => b.disabled = false);
+      capturing = false;
+    }
+
+    // Send bundled TOC pages
+    async function sendTocBundle() {
+      const btn = document.getElementById("toc-send-btn");
+      btn.disabled = true;
+      showToast("Sending " + tocPages.length + " pages...");
+
+      try {
+        const resp = await fetch(pairingData.processUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connectionId: pairingData.connectionId,
+            images: tocPages,
+            category: "toc",
+          }),
+        });
+        const result = await resp.json();
+        if (result.error) {
+          showToast("Error: " + result.error, 3000);
+        } else {
+          showToast("Sent " + tocPages.length + " pages!");
+          tocPages = [];
+          updateTocCount();
+        }
+      } catch (err) {
+        showToast("Failed: " + err.message, 3000);
+      }
       btn.disabled = false;
     }
 
-    function goToCamera() {
-      showStep("step-camera");
-    }
-
-    // Check URL params first (opened via native camera / link)
+    // Init
     const params = new URLSearchParams(window.location.search);
     if (params.get("cid")) {
       pair({
