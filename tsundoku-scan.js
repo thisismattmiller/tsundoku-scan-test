@@ -8,6 +8,7 @@
 class TsundokuScan {
   constructor(opts = {}) {
     this.wsUrl = opts.wsUrl;
+    this.resourceId = opts.resourceId || null;
     this.ws = null;
     this.connectionId = null;
     this.endpoint = null;
@@ -23,7 +24,9 @@ class TsundokuScan {
       this.ws = new WebSocket(this.wsUrl);
 
       this.ws.onopen = () => {
-        this.ws.send(JSON.stringify({ action: "init" }));
+        const msg = { action: "init" };
+        if (this.resourceId) msg.resourceId = this.resourceId;
+        this.ws.send(JSON.stringify(msg));
       };
 
       this.ws.onmessage = (evt) => {
@@ -75,6 +78,7 @@ class TsundokuScan {
     url.searchParams.set("cid", this.connectionId);
     url.searchParams.set("ep", this.endpoint);
     if (processUrl) url.searchParams.set("proc", processUrl);
+    if (this.resourceId) url.searchParams.set("rid", this.resourceId);
     return url.toString();
   }
 
@@ -168,15 +172,17 @@ class TsundokuCamera {
 /**
  * Mobile-side: send a captured photo to the processing endpoint.
  */
-async function sendPhoto(processUrl, connectionId, imageDataUrl, category) {
+async function sendPhoto(processUrl, connectionId, imageDataUrl, category, resourceId) {
+  const payload = {
+    connectionId: connectionId,
+    image: imageDataUrl,
+    category: category,
+  };
+  if (resourceId) payload.resourceId = resourceId;
   const resp = await fetch(processUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      connectionId: connectionId,
-      image: imageDataUrl,
-      category: category,
-    }),
+    body: JSON.stringify(payload),
   });
   return resp.json();
 }

@@ -69,6 +69,10 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .result-item.error {
+      background: #fef2f2;
+      border-left-color: #ef4444;
+    }
     .result-item .timestamp {
       font-size: 0.75rem;
       color: #888;
@@ -107,8 +111,7 @@
   <script src="tsundoku-scan.js"></script>
   <script>
     const WS_URL = "wss://0xwe3mmkea.execute-api.us-east-1.amazonaws.com/prod";
-    // TODO: set this once the process Lambda exists
-    const PROCESS_URL = "";
+    const PROCESS_URL = "https://xdcgxaq95i.execute-api.us-east-1.amazonaws.com/prod/process";
     // URL of the mobile page — native camera apps will open this
     const MOBILE_URL = window.location.href.replace(/computer\.html.*/, "index.html");
 
@@ -120,21 +123,24 @@
       el.className = cls;
     }
 
-    function addResult(data) {
+    function addResult(data, isError = false) {
       const container = document.getElementById("results");
-      // Clear placeholder text on first result
       if (container.querySelector(".info")) container.innerHTML = "";
 
       const div = document.createElement("div");
-      div.className = "result-item";
+      div.className = "result-item" + (isError ? " error" : "");
 
       const ts = document.createElement("div");
       ts.className = "timestamp";
-      ts.textContent = new Date().toLocaleTimeString();
+      ts.textContent = new Date().toLocaleTimeString() + " — " + (data.category || "unknown");
       div.appendChild(ts);
 
       const body = document.createElement("div");
-      body.textContent = JSON.stringify(data, null, 2);
+      if (isError) {
+        body.textContent = (data.error || "error") + ": " + (data.message || data.error || "Unknown error");
+      } else {
+        body.textContent = JSON.stringify(data.data, null, 2);
+      }
       div.appendChild(body);
 
       container.prepend(div);
@@ -148,6 +154,7 @@
 
       scanner = new TsundokuScan({
         wsUrl: WS_URL,
+        resourceId: "DEMO-" + Math.random().toString(36).slice(2, 10),
         onSession: (data) => {
           setStatus("Connected", "connected");
           document.getElementById("connection-id").textContent =
@@ -163,8 +170,13 @@
           addResult(data);
         },
         onError: (err) => {
-          setStatus("Error: " + (err.message || "connection failed"), "error");
-          btn.disabled = false;
+          // Processing errors have category/message, WebSocket errors don't
+          if (err.category) {
+            addResult(err, true);
+          } else {
+            setStatus("Error: " + (err.message || "connection failed"), "error");
+            btn.disabled = false;
+          }
         },
         onClose: () => {
           setStatus("Disconnected", "closed");

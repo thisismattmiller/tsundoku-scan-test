@@ -93,6 +93,16 @@
       cursor: pointer;
     }
     .toc-send-btn:disabled { opacity: 0.5; }
+    .toc-reset-btn {
+      background: rgba(255,255,255,0.15);
+      color: #ddd;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .toc-reset-btn:disabled { opacity: 0.5; }
 
     /* Flash overlay for capture feedback */
     .flash {
@@ -148,6 +158,7 @@
         <button class="cat-btn" data-cat="summary" data-multi="false">Summary</button>
       </div>
       <div class="toc-bar" id="toc-bar">
+        <button class="toc-reset-btn" id="toc-reset-btn" onclick="resetToc()" disabled>Reset</button>
         <span class="toc-count" id="toc-count">0 pages</span>
         <button class="toc-send-btn" id="toc-send-btn" onclick="sendTocBundle()" disabled>Send All</button>
       </div>
@@ -219,6 +230,13 @@
       document.getElementById("toc-count").textContent =
         tocPages.length + (tocPages.length === 1 ? " page" : " pages");
       document.getElementById("toc-send-btn").disabled = tocPages.length === 0;
+      document.getElementById("toc-reset-btn").disabled = tocPages.length === 0;
+    }
+
+    function resetToc() {
+      tocPages = [];
+      updateTocCount();
+      showToast("Reset");
     }
 
     // QR scanning
@@ -253,6 +271,7 @@
             connectionId: url.searchParams.get("cid"),
             endpoint: url.searchParams.get("ep"),
             processUrl: url.searchParams.get("proc") || "",
+            resourceId: url.searchParams.get("rid") || "",
           };
         } catch {
           return;
@@ -294,7 +313,8 @@
             pairingData.processUrl,
             pairingData.connectionId,
             dataUrl,
-            selectedCategory
+            selectedCategory,
+            pairingData.resourceId
           );
           showToast("Sent!");
         } catch (err) {
@@ -320,6 +340,7 @@
             connectionId: pairingData.connectionId,
             images: tocPages,
             category: "toc",
+            resourceId: pairingData.resourceId || "",
           }),
         });
         const result = await resp.json();
@@ -343,6 +364,7 @@
         connectionId: params.get("cid"),
         endpoint: params.get("ep"),
         processUrl: params.get("proc") || "",
+        resourceId: params.get("rid") || "",
       });
     } else {
       startQRScanner();
