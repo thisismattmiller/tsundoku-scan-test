@@ -185,25 +185,38 @@
       }
     }
 
-    async function onQRScanned(decodedText) {
-      try {
-        pairingData = JSON.parse(decodedText);
-      } catch {
-        return; // not our QR code
-      }
-      if (!pairingData.connectionId || !pairingData.processUrl) return;
-
-      // Stop QR scanner
-      await qrScanner.stop();
-      qrScanner = null;
-
+    function pair(data) {
+      pairingData = data;
       document.getElementById("header-status").textContent = "Paired!";
       document.getElementById("paired-info").textContent =
         "Paired: " + pairingData.connectionId.substring(0, 8) + "...";
-
-      // Move to camera step
       showStep("step-camera");
       startCamera();
+    }
+
+    async function onQRScanned(decodedText) {
+      let data;
+      try {
+        // Try JSON first (in-app QR scanner)
+        data = JSON.parse(decodedText);
+      } catch {
+        // Try URL (scanned a link QR code from within the app)
+        try {
+          const url = new URL(decodedText);
+          data = {
+            connectionId: url.searchParams.get("cid"),
+            endpoint: url.searchParams.get("ep"),
+            processUrl: url.searchParams.get("proc") || "",
+          };
+        } catch {
+          return;
+        }
+      }
+      if (!data.connectionId) return;
+
+      await qrScanner.stop();
+      qrScanner = null;
+      pair(data);
     }
 
     // Step 2: Camera
@@ -251,8 +264,17 @@
       showStep("step-camera");
     }
 
-    // Start
-    startQRScanner();
+    // Check URL params first (opened via native camera / link)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cid")) {
+      pair({
+        connectionId: params.get("cid"),
+        endpoint: params.get("ep"),
+        processUrl: params.get("proc") || "",
+      });
+    } else {
+      startQRScanner();
+    }
   </script>
 </body>
 </html>

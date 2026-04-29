@@ -109,6 +109,8 @@
     const WS_URL = "wss://0xwe3mmkea.execute-api.us-east-1.amazonaws.com/prod";
     // TODO: set this once the process Lambda exists
     const PROCESS_URL = "";
+    // URL of the mobile page — native camera apps will open this
+    const MOBILE_URL = window.location.href.replace(/computer\.html.*/, "index.html");
 
     let scanner = null;
 
@@ -152,6 +154,7 @@
             "Connection: " + data.connectionId;
           scanner.renderQR(
             document.getElementById("qr-container"),
+            MOBILE_URL,
             PROCESS_URL
           );
           btn.disabled = false;

@@ -66,30 +66,32 @@ class TsundokuScan {
   }
 
   /**
-   * Build the data object for the QR code.
-   * Contains everything the mobile page needs to pair.
+   * Build a URL for the QR code that opens the mobile page with pairing info.
+   * @param {string} mobileUrl - base URL of the mobile page
+   * @param {string} processUrl - URL of the processing Lambda
    */
-  getQRData(processUrl) {
-    return JSON.stringify({
-      connectionId: this.connectionId,
-      endpoint: this.endpoint,
-      processUrl: processUrl,
-    });
+  getQRUrl(mobileUrl, processUrl) {
+    const url = new URL(mobileUrl);
+    url.searchParams.set("cid", this.connectionId);
+    url.searchParams.set("ep", this.endpoint);
+    if (processUrl) url.searchParams.set("proc", processUrl);
+    return url.toString();
   }
 
   /**
    * Render a styled QR code into a container element.
    * Requires qr-code-styling to be loaded.
    * @param {HTMLElement} container - DOM element to append QR code to
+   * @param {string} mobileUrl - base URL of the mobile page
    * @param {string} processUrl - URL of the processing Lambda
    * @param {object} opts - optional overrides for QRCodeStyling
    * @returns {QRCodeStyling} the QR code instance
    */
-  renderQR(container, processUrl, opts = {}) {
+  renderQR(container, mobileUrl, processUrl, opts = {}) {
     if (typeof QRCodeStyling === "undefined") {
       throw new Error("qr-code-styling library is not loaded");
     }
-    const data = this.getQRData(processUrl);
+    const data = this.getQRUrl(mobileUrl, processUrl);
     const qr = new QRCodeStyling({
       width: opts.width || 280,
       height: opts.height || 280,
