@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tsundoku Scan — Mobile</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      padding: 16px;
+      text-align: center;
+      background: #16213e;
+    }
+    .header h1 { font-size: 1.2rem; }
+    .header .sub { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+
+    /* Steps */
+    .step { display: none; flex: 1; flex-direction: column; }
+    .step.active { display: flex; }
+
+    /* Step 1: QR Scanner */
+    #step-scan { align-items: center; justify-content: center; padding: 20px; }
+    #qr-reader { width: 100%; max-width: 400px; }
+    #scan-status { margin-top: 12px; font-size: 0.9rem; color: #aaa; }
+
+    /* Step 2: Camera */
+    #step-camera { position: relative; }
+    #camera-feed {
+      width: 100%;
+      flex: 1;
+      object-fit: cover;
+      background: #000;
+    }
+    .camera-controls {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #16213e;
+    }
+    .category-select {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .category-btn {
+      background: #2a2a4a;
+      color: #ccc;
+      border: 2px solid transparent;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .category-btn.selected {
+      border-color: #3b82f6;
+      color: #fff;
+      background: #1e3a5f;
+    }
+    .capture-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid #3b82f6;
+      cursor: pointer;
+      align-self: center;
+      position: relative;
+    }
+    .capture-btn:active { background: #ddd; }
+    .capture-btn:disabled { opacity: 0.4; }
+
+    /* Step 3: Sending */
+    #step-sending {
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    #send-status { margin-top: 16px; font-size: 0.9rem; color: #aaa; }
+    #preview-img {
+      max-width: 200px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    /* Shared */
+    .btn {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    .btn:disabled { opacity: 0.5; }
+    .paired-info {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Tsundoku Scan</h1>
+    <div class="sub" id="header-status">Scan the QR code on your computer</div>
+  </div>
+
+  <!-- Step 1: Scan QR code -->
+  <div id="step-scan" class="step active">
+    <div id="qr-reader"></div>
+    <div id="scan-status">Point your camera at the QR code</div>
+  </div>
+
+  <!-- Step 2: Camera + capture -->
+  <div id="step-camera" class="step">
+    <video id="camera-feed" autoplay playsinline muted></video>
+    <div class="camera-controls">
+      <div class="category-select">
+        <button class="category-btn selected" data-cat="copyright">Copyright Page</button>
+        <button class="category-btn" data-cat="toc">Table of Contents</button>
+        <button class="category-btn" data-cat="back_cover">Back Cover</button>
+        <button class="category-btn" data-cat="summary">Summary</button>
+      </div>
+      <button class="capture-btn" id="capture-btn" onclick="capturePhoto()"></button>
+    </div>
+    <div class="paired-info" id="paired-info"></div>
+  </div>
+
+  <!-- Step 3: Sending/Result -->
+  <div id="step-sending" class="step">
+    <img id="preview-img" />
+    <div id="send-status">Sending...</div>
+    <button class="btn" id="another-btn" onclick="goToCamera()" style="display:none">Take Another Photo</button>
+  </div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="tsundoku-scan.js"></script>
+  <script>
+    let pairingData = null;
+    let camera = null;
+    let selectedCategory = "copyright";
+    let qrScanner = null;
+
+    // Category button selection
+    document.querySelectorAll(".category-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".category-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedCategory = btn.dataset.cat;
+      });
+    });
+
+    function showStep(id) {
+      document.querySelectorAll(".step").forEach((s) => s.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+    }
+
+    // Step 1: Scan QR
+    async function startQRScanner() {
+      qrScanner = new Html5Qrcode("qr-reader");
+      try {
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          onQRScanned,
+          () => {} // ignore scan failures
+        );
+      } catch (err) {
+        document.getElementById("scan-status").textContent =
+          "Camera error: " + err;
+      }
+    }
+
+    async function onQRScanned(decodedText) {
+      try {
+        pairingData = JSON.parse(decodedText);
+      } catch {
+        return; // not our QR code
+      }
+      if (!pairingData.connectionId || !pairingData.processUrl) return;
+
+      // Stop QR scanner
+      await qrScanner.stop();
+      qrScanner = null;
+
+      document.getElementById("header-status").textContent = "Paired!";
+      document.getElementById("paired-info").textContent =
+        "Paired: " + pairingData.connectionId.substring(0, 8) + "...";
+
+      // Move to camera step
+      showStep("step-camera");
+      startCamera();
+    }
+
+    // Step 2: Camera
+    async function startCamera() {
+      const video = document.getElementById("camera-feed");
+      camera = new TsundokuCamera(video);
+      try {
+        await camera.start();
+      } catch (err) {
+        document.getElementById("header-status").textContent =
+          "Camera error: " + err.message;
+      }
+    }
+
+    async function capturePhoto() {
+      const btn = document.getElementById("capture-btn");
+      btn.disabled = true;
+
+      const dataUrl = camera.capture(0.85);
+
+      // Show preview
+      document.getElementById("preview-img").src = dataUrl;
+      document.getElementById("send-status").textContent = "Sending...";
+      document.getElementById("another-btn").style.display = "none";
+      showStep("step-sending");
+
+      try {
+        const result = await sendPhoto(
+          pairingData.processUrl,
+          pairingData.connectionId,
+          dataUrl,
+          selectedCategory
+        );
+        document.getElementById("send-status").textContent =
+          result.error ? "Error: " + result.error : "Sent! Result delivered to your computer.";
+      } catch (err) {
+        document.getElementById("send-status").textContent = "Failed: " + err.message;
+      }
+
+      document.getElementById("another-btn").style.display = "";
+      btn.disabled = false;
+    }
+
+    function goToCamera() {
+      showStep("step-camera");
+    }
+
+    // Start
+    startQRScanner();
+  </script>
+</body>
+</html>

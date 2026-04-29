@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tsundoku Scan — Computer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a2e;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .container { max-width: 600px; width: 100%; }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .subtitle { color: #666; margin-bottom: 24px; }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 12px; }
+    #qr-container {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      background: #fafafa;
+      border-radius: 8px;
+      min-height: 280px;
+      align-items: center;
+    }
+    #status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    #status.connecting { background: #fff3cd; color: #856404; }
+    #status.connected { background: #d4edda; color: #155724; }
+    #status.error { background: #f8d7da; color: #721c24; }
+    #status.closed { background: #e2e3e5; color: #383d41; }
+    button {
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button:hover { background: #16213e; }
+    button:disabled { background: #999; cursor: not-allowed; }
+    #results {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .result-item {
+      background: #f0f7ff;
+      border-left: 3px solid #3b82f6;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .result-item .timestamp {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .info { font-size: 0.85rem; color: #666; margin-top: 8px; }
+    #connection-id { font-family: monospace; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tsundoku Scan</h1>
+    <p class="subtitle">Scan a book page with your phone</p>
+
+    <div class="card">
+      <div id="status" class="connecting">Connecting...</div>
+      <button id="connect-btn" onclick="start()" disabled>Reconnect</button>
+      <div id="connection-id"></div>
+    </div>
+
+    <div class="card">
+      <h2>Scan this QR code with your phone</h2>
+      <div id="qr-container">Waiting for connection...</div>
+      <p class="info">The QR code links your phone to this browser session.</p>
+    </div>
+
+    <div class="card">
+      <h2>Results</h2>
+      <div id="results">
+        <p class="info">Results from your phone will appear here.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.8.4/lib/qr-code-styling.js"></script>
+  <script src="tsundoku-scan.js"></script>
+  <script>
+    const WS_URL = "wss://0xwe3mmkea.execute-api.us-east-1.amazonaws.com/prod";
+    // TODO: set this once the process Lambda exists
+    const PROCESS_URL = "";
+
+    let scanner = null;
+
+    function setStatus(text, cls) {
+      const el = document.getElementById("status");
+      el.textContent = text;
+      el.className = cls;
+    }
+
+    function addResult(data) {
+      const container = document.getElementById("results");
+      // Clear placeholder text on first result
+      if (container.querySelector(".info")) container.innerHTML = "";
+
+      const div = document.createElement("div");
+      div.className = "result-item";
+
+      const ts = document.createElement("div");
+      ts.className = "timestamp";
+      ts.textContent = new Date().toLocaleTimeString();
+      div.appendChild(ts);
+
+      const body = document.createElement("div");
+      body.textContent = JSON.stringify(data, null, 2);
+      div.appendChild(body);
+
+      container.prepend(div);
+    }
+
+    async function start() {
+      const btn = document.getElementById("connect-btn");
+      btn.disabled = true;
+
+      if (scanner) scanner.disconnect();
+
+      scanner = new TsundokuScan({
+        wsUrl: WS_URL,
+        onSession: (data) => {
+          setStatus("Connected", "connected");
+          document.getElementById("connection-id").textContent =
+            "Connection: " + data.connectionId;
+          scanner.renderQR(
+            document.getElementById("qr-container"),
+            PROCESS_URL
+          );
+          btn.disabled = false;
+        },
+        onResult: (data) => {
+          addResult(data);
+        },
+        onError: (err) => {
+          setStatus("Error: " + (err.message || "connection failed"), "error");
+          btn.disabled = false;
+        },
+        onClose: () => {
+          setStatus("Disconnected", "closed");
+          btn.disabled = false;
+        },
+      });
+
+      setStatus("Connecting...", "connecting");
+      try {
+        await scanner.connect();
+      } catch (e) {
+        setStatus("Failed to connect", "error");
+        btn.disabled = false;
+      }
+    }
+
+    // Auto-connect on load
+    start();
+  </script>
+</body>
+</html>
