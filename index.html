@@ -134,6 +134,21 @@
       z-index: 10;
     }
     .toast.show { opacity: 1; }
+    .rescan-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
@@ -147,6 +162,7 @@
   <!-- Step 2: Camera — fullscreen -->
   <div id="step-camera" class="step">
     <video id="camera-feed" autoplay playsinline muted></video>
+    <button class="rescan-btn" onclick="rescan()">Re-scan QR</button>
     <div class="flash" id="flash"></div>
     <div class="toast" id="toast"></div>
     <div class="camera-overlay">
@@ -239,6 +255,16 @@
       showToast("Reset");
     }
 
+    function rescan() {
+      if (camera) camera.stop();
+      pairingData = null;
+      tocPages = [];
+      // Clear URL params so refresh doesn't skip back to camera
+      window.history.replaceState({}, "", window.location.pathname);
+      showStep("step-scan");
+      startQRScanner();
+    }
+
     // QR scanning
     async function startQRScanner() {
       qrScanner = new Html5Qrcode("qr-reader");
@@ -254,8 +280,32 @@
       }
     }
 
-    function pair(data) {
+    async function checkConnection(cid, processUrl) {
+      if (!processUrl) return true; // no endpoint to check, assume ok
+      try {
+        const checkUrl = processUrl.replace(/\/process$/, "/check") + "?cid=" + encodeURIComponent(cid);
+        const resp = await fetch(checkUrl);
+        const data = await resp.json();
+        return data.alive;
+      } catch {
+        return true; // can't check, assume ok
+      }
+    }
+
+    async function pair(data) {
       pairingData = data;
+
+      // Check if connection is still alive
+      const alive = await checkConnection(data.connectionId, data.processUrl);
+      if (!alive) {
+        // Clear stale params and show scanner with message
+        window.history.replaceState({}, "", window.location.pathname);
+        document.getElementById("scan-status").textContent = "Session expired — scan a new QR code";
+        showStep("step-scan");
+        startQRScanner();
+        return;
+      }
+
       showStep("step-camera");
       startCamera();
     }
