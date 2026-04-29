@@ -73,11 +73,9 @@ class TsundokuScan {
    * @param {string} mobileUrl - base URL of the mobile page
    * @param {string} processUrl - URL of the processing Lambda
    */
-  getQRUrl(mobileUrl, processUrl) {
+  getQRUrl(mobileUrl) {
     const url = new URL(mobileUrl);
     url.searchParams.set("cid", this.connectionId);
-    url.searchParams.set("ep", this.endpoint);
-    if (processUrl) url.searchParams.set("proc", processUrl);
     if (this.resourceId) url.searchParams.set("rid", this.resourceId);
     return url.toString();
   }
@@ -91,11 +89,11 @@ class TsundokuScan {
    * @param {object} opts - optional overrides for QRCodeStyling
    * @returns {QRCodeStyling} the QR code instance
    */
-  renderQR(container, mobileUrl, processUrl, opts = {}) {
+  renderQR(container, mobileUrl, opts = {}) {
     if (typeof QRCodeStyling === "undefined") {
       throw new Error("qr-code-styling library is not loaded");
     }
-    const data = this.getQRUrl(mobileUrl, processUrl);
+    const data = this.getQRUrl(mobileUrl);
     const qr = new QRCodeStyling({
       width: opts.width || 280,
       height: opts.height || 280,

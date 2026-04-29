@@ -198,6 +198,10 @@
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="tsundoku-scan.js"></script>
   <script>
+    // Hardcoded endpoints — no need to pass these through the QR code
+    const PROCESS_URL = "https://xdcgxaq95i.execute-api.us-east-1.amazonaws.com/prod/process";
+    const WS_ENDPOINT = "https://0xwe3mmkea.execute-api.us-east-1.amazonaws.com/prod";
+
     let pairingData = null;
     let camera = null;
     let selectedCategory = "copyright";
@@ -294,10 +298,9 @@
       }
     }
 
-    async function checkConnection(cid, processUrl) {
-      if (!processUrl) return true; // no endpoint to check, assume ok
+    async function checkConnection(cid) {
       try {
-        const checkUrl = processUrl.replace(/\/process$/, "/check") + "?cid=" + encodeURIComponent(cid);
+        const checkUrl = PROCESS_URL.replace(/\/process$/, "/check") + "?cid=" + encodeURIComponent(cid);
         const resp = await fetch(checkUrl);
         const data = await resp.json();
         return data.alive;
@@ -310,7 +313,7 @@
       pairingData = data;
 
       // Check if connection is still alive
-      const alive = await checkConnection(data.connectionId, data.processUrl);
+      const alive = await checkConnection(data.connectionId);
       if (!alive) {
         // Clear stale params and show scanner with message
         window.history.replaceState({}, "", window.location.pathname);
@@ -334,8 +337,6 @@
           const url = new URL(decodedText);
           data = {
             connectionId: url.searchParams.get("cid"),
-            endpoint: url.searchParams.get("ep"),
-            processUrl: url.searchParams.get("proc") || "",
             resourceId: url.searchParams.get("rid") || "",
           };
         } catch {
@@ -375,7 +376,7 @@
         showToast("Sending...");
         try {
           await sendPhoto(
-            pairingData.processUrl,
+            PROCESS_URL,
             pairingData.connectionId,
             dataUrl,
             selectedCategory,
@@ -398,7 +399,7 @@
       showToast("Sending " + tocPages.length + " pages...");
 
       try {
-        const resp = await fetch(pairingData.processUrl, {
+        const resp = await fetch(PROCESS_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -427,8 +428,6 @@
     if (params.get("cid")) {
       pair({
         connectionId: params.get("cid"),
-        endpoint: params.get("ep"),
-        processUrl: params.get("proc") || "",
         resourceId: params.get("rid") || "",
       });
     } else {
