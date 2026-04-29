@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Barcode Scanner Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 16px;
+    }
+    h1 { font-size: 1.2rem; margin-bottom: 12px; text-align: center; }
+    #reader { width: 100%; max-width: 500px; margin: 0 auto; }
+    #results {
+      margin-top: 16px;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    .scan-item {
+      background: #16213e;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+    .scan-item .format { color: #3b82f6; font-weight: bold; }
+    .scan-item .value { color: #22c55e; font-family: monospace; font-size: 1rem; }
+    .scan-item .time { color: #666; font-size: 0.75rem; }
+    .count { text-align: center; color: #888; font-size: 0.85rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Barcode / QR Scanner Test</h1>
+  <div id="reader"></div>
+  <div class="count" id="count">No scans yet</div>
+  <div id="results"></div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    let scanCount = 0;
+    const seen = new Set();
+
+    function addScan(text, result) {
+      const format = result?.decodedText ? (result.result?.format?.formatName || "unknown") : "unknown";
+
+      // Dedupe rapid re-scans of the same code
+      const dedupeKey = text + format;
+      if (seen.has(dedupeKey)) return;
+      seen.add(dedupeKey);
+      setTimeout(() => seen.delete(dedupeKey), 3000);
+
+      scanCount++;
+      document.getElementById("count").textContent = scanCount + " scan(s)";
+
+      const div = document.createElement("div");
+      div.className = "scan-item";
+      div.innerHTML =
+        '<div class="time">' + new Date().toLocaleTimeString() + '</div>' +
+        '<div>Format: <span class="format">' + format + '</span></div>' +
+        '<div>Value: <span class="value">' + text + '</span></div>';
+
+      const container = document.getElementById("results");
+      container.prepend(div);
+    }
+
+    const scanner = new Html5Qrcode("reader");
+    scanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.CODABAR,
+        ],
+      },
+      (text, result) => addScan(text, result),
+      () => {}
+    ).catch(err => {
+      document.getElementById("count").textContent = "Camera error: " + err;
+    });
+  </script>
+</body>
+</html>
