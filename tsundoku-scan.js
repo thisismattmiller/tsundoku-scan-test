@@ -130,7 +130,7 @@ class TsundokuCamera {
   /** Start the rear camera. */
   async start() {
     this.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 4032 }, height: { ideal: 3024 } },
       audio: false,
     });
     this.video.srcObject = this.stream;
