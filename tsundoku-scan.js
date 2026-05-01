@@ -119,6 +119,19 @@ class TsundokuScan {
     qr.append(container);
     return qr;
   }
+
+  /**
+   * Retrieve stored results for a resource ID (from offline captures).
+   * @param {string} processUrl - base URL of the process API
+   * @param {string} resourceId - the resource ID to look up
+   * @returns {object} { resourceId, results: { copyright: {...}, toc: {...}, ... } }
+   */
+  static async retrieve(processUrl, resourceId) {
+    const retrieveUrl = processUrl.replace(/\/process$/, "/retrieve") +
+      "?rid=" + encodeURIComponent(resourceId);
+    const resp = await fetch(retrieveUrl);
+    return resp.json();
+  }
 }
 
 /**

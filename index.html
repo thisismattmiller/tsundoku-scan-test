@@ -17,7 +17,31 @@
     .step { display: none; width: 100%; height: 100%; }
     .step.active { display: flex; flex-direction: column; }
 
-    /* Step 1: QR Scanner */
+    /* Step: Mode selector */
+    #step-mode {
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      padding: 20px;
+      gap: 20px;
+    }
+    #step-mode h1 { font-size: 1.4rem; }
+    .mode-btn {
+      background: rgba(255,255,255,0.1);
+      color: #eee;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      padding: 20px 30px;
+      border-radius: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      width: 80%;
+      max-width: 300px;
+      text-align: center;
+    }
+    .mode-btn .mode-title { font-weight: bold; margin-bottom: 4px; }
+    .mode-btn .mode-desc { font-size: 0.8rem; color: #aaa; }
+
+    /* Step: QR Scanner (live mode) */
     #step-scan {
       align-items: center;
       justify-content: center;
@@ -28,7 +52,18 @@
     #qr-reader { width: 100%; max-width: 400px; }
     #scan-status { margin-top: 12px; font-size: 0.9rem; color: #aaa; }
 
-    /* Step 2: Camera — fullscreen viewfinder */
+    /* Step: Barcode Scanner (offline mode) */
+    #step-barcode {
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      padding: 20px;
+    }
+    #step-barcode h1 { font-size: 1.2rem; margin-bottom: 16px; }
+    #barcode-reader { width: 100%; max-width: 400px; }
+    #barcode-status { margin-top: 12px; font-size: 0.9rem; color: #aaa; }
+
+    /* Step: Camera — fullscreen viewfinder */
     #step-camera { position: relative; }
     #camera-feed {
       position: absolute;
@@ -104,6 +139,25 @@
     }
     .toc-reset-btn:disabled { opacity: 0.5; }
 
+    /* Offline bar — new book button */
+    .offline-bar {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .offline-bar.visible { display: flex; }
+    .new-book-btn {
+      background: #f59e0b;
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     /* Flash overlay for capture feedback */
     .flash {
       position: absolute;
@@ -147,7 +201,7 @@
       -webkit-backdrop-filter: blur(4px);
       z-index: 10;
     }
-    .rescan-btn {
+    .top-left-btn {
       position: absolute;
       top: 12px;
       left: 12px;
@@ -162,20 +216,56 @@
       -webkit-backdrop-filter: blur(4px);
       z-index: 10;
     }
+    .mode-badge {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(245,158,11,0.6);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 10;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <!-- Step 1: Scan QR code -->
-  <div id="step-scan" class="step active">
+  <!-- Step: Mode selector -->
+  <div id="step-mode" class="step active">
     <h1>Tsundoku Scan</h1>
+    <button class="mode-btn" onclick="startLiveMode()">
+      <div class="mode-title">Live Session</div>
+      <div class="mode-desc">Scan QR code from computer to pair</div>
+    </button>
+    <button class="mode-btn" onclick="startOfflineMode()">
+      <div class="mode-title">Offline Capture</div>
+      <div class="mode-desc">Scan book barcode, capture pages for later</div>
+    </button>
+  </div>
+
+  <!-- Step: QR Scanner (live mode) -->
+  <div id="step-scan" class="step">
+    <h1>Scan QR Code</h1>
     <div id="qr-reader"></div>
     <div id="scan-status">Point your camera at the QR code</div>
   </div>
 
-  <!-- Step 2: Camera — fullscreen -->
+  <!-- Step: Barcode Scanner (offline mode) -->
+  <div id="step-barcode" class="step">
+    <h1>Scan Book Barcode</h1>
+    <div id="barcode-reader"></div>
+    <div id="barcode-status">Point your camera at the book's barcode</div>
+  </div>
+
+  <!-- Step: Camera — fullscreen -->
   <div id="step-camera" class="step">
     <video id="camera-feed" autoplay playsinline muted></video>
-    <button class="rescan-btn" onclick="rescan()">Re-scan QR</button>
+    <button class="top-left-btn" id="back-btn" onclick="goBack()">Back</button>
+    <div class="mode-badge" id="mode-badge">OFFLINE</div>
     <div class="resource-id" id="resource-id"></div>
     <div class="flash" id="flash"></div>
     <div class="toast" id="toast"></div>
@@ -193,13 +283,15 @@
         <span class="toc-count" id="toc-count">0 pages</span>
         <button class="toc-send-btn" id="toc-send-btn" onclick="sendTocBundle()" disabled>Send All</button>
       </div>
+      <div class="offline-bar" id="offline-bar">
+        <button class="new-book-btn" onclick="newBook()">New Book</button>
+      </div>
     </div>
   </div>
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="tsundoku-scan.js"></script>
   <script>
-    // Hardcoded endpoints — no need to pass these through the QR code
     const PROCESS_URL = "https://xdcgxaq95i.execute-api.us-east-1.amazonaws.com/prod/process";
     const WS_ENDPOINT = "https://0xwe3mmkea.execute-api.us-east-1.amazonaws.com/prod";
 
@@ -208,9 +300,10 @@
     let selectedCategory = "copyright";
     let isMultiPage = false;
     let qrScanner = null;
-    let tocPages = []; // collected TOC page data URLs
-
+    let barcodeScanner = null;
+    let tocPages = [];
     let capturing = false;
+    let mode = "live"; // "live" or "offline"
 
     // Category buttons: tap to capture
     document.querySelectorAll(".cat-btn").forEach((btn) => {
@@ -220,13 +313,11 @@
         const cat = btn.dataset.cat;
         const multi = btn.dataset.multi === "true";
 
-        // Update selection state
         selectedCategory = cat;
         isMultiPage = multi;
         document.querySelectorAll(".cat-btn").forEach((b) => b.classList.remove("selected"));
         btn.classList.add("selected");
 
-        // Show/hide TOC bar
         const tocBar = document.getElementById("toc-bar");
         if (multi) {
           tocBar.classList.add("visible");
@@ -234,7 +325,6 @@
           tocBar.classList.remove("visible");
         }
 
-        // Capture
         await capturePhoto();
       });
     });
@@ -274,17 +364,48 @@
       showToast("Reset");
     }
 
-    function rescan() {
-      if (camera) camera.stop();
-      pairingData = null;
-      tocPages = [];
-      // Clear URL params so refresh doesn't skip back to camera
-      window.history.replaceState({}, "", window.location.pathname);
+    // ---- Mode selection ----
+
+    function startLiveMode() {
+      mode = "live";
+      document.getElementById("mode-badge").style.display = "none";
+      document.getElementById("offline-bar").classList.remove("visible");
       showStep("step-scan");
       startQRScanner();
     }
 
-    // QR scanning
+    function startOfflineMode() {
+      mode = "offline";
+      document.getElementById("mode-badge").style.display = "";
+      document.getElementById("offline-bar").classList.add("visible");
+      showStep("step-barcode");
+      startBarcodeScanner();
+    }
+
+    function goBack() {
+      if (camera) camera.stop();
+      pairingData = null;
+      tocPages = [];
+      window.history.replaceState({}, "", window.location.pathname);
+      if (mode === "offline") {
+        showStep("step-barcode");
+        startBarcodeScanner();
+      } else {
+        showStep("step-scan");
+        startQRScanner();
+      }
+    }
+
+    function newBook() {
+      if (camera) camera.stop();
+      tocPages = [];
+      updateTocCount();
+      showStep("step-barcode");
+      startBarcodeScanner();
+    }
+
+    // ---- QR scanning (live mode) ----
+
     async function startQRScanner() {
       qrScanner = new Html5Qrcode("qr-reader");
       try {
@@ -306,22 +427,22 @@
         const data = await resp.json();
         return data.alive;
       } catch {
-        return true; // can't check, assume ok
+        return true;
       }
     }
 
     async function pair(data) {
       pairingData = data;
 
-      // Check if connection is still alive
-      const alive = await checkConnection(data.connectionId);
-      if (!alive) {
-        // Clear stale params and show scanner with message
-        window.history.replaceState({}, "", window.location.pathname);
-        document.getElementById("scan-status").textContent = "Session expired — scan a new QR code";
-        showStep("step-scan");
-        startQRScanner();
-        return;
+      if (mode === "live" && data.connectionId) {
+        const alive = await checkConnection(data.connectionId);
+        if (!alive) {
+          window.history.replaceState({}, "", window.location.pathname);
+          document.getElementById("scan-status").textContent = "Session expired — scan a new QR code";
+          showStep("step-scan");
+          startQRScanner();
+          return;
+        }
       }
 
       document.getElementById("resource-id").textContent = pairingData.resourceId || "";
@@ -350,7 +471,47 @@
       pair(data);
     }
 
-    // Camera
+    // ---- Barcode scanning (offline mode) ----
+
+    async function startBarcodeScanner() {
+      barcodeScanner = new Html5Qrcode("barcode-reader");
+      try {
+        await barcodeScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 },
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+            ],
+          },
+          onBarcodeScanned,
+          () => {}
+        );
+      } catch (err) {
+        document.getElementById("barcode-status").textContent = "Camera error: " + err;
+      }
+    }
+
+    async function onBarcodeScanned(decodedText) {
+      await barcodeScanner.stop();
+      barcodeScanner = null;
+      pairingData = {
+        connectionId: null,
+        resourceId: decodedText,
+      };
+      document.getElementById("resource-id").textContent = decodedText;
+      showStep("step-camera");
+      startCamera();
+    }
+
+    // ---- Camera ----
+
     async function startCamera() {
       const video = document.getElementById("camera-feed");
       camera = new TsundokuCamera(video);
@@ -361,7 +522,8 @@
       }
     }
 
-    // Capture
+    // ---- Capture ----
+
     async function capturePhoto() {
       capturing = true;
       document.querySelectorAll(".cat-btn").forEach((b) => b.disabled = true);
@@ -424,15 +586,18 @@
       btn.disabled = false;
     }
 
-    // Init
+    // ---- Init ----
     const params = new URLSearchParams(window.location.search);
     if (params.get("cid")) {
+      mode = "live";
+      document.getElementById("mode-badge").style.display = "none";
+      document.getElementById("offline-bar").classList.remove("visible");
       pair({
         connectionId: params.get("cid"),
         resourceId: params.get("rid") || "",
       });
     } else {
-      startQRScanner();
+      showStep("step-mode");
     }
   </script>
 </body>
