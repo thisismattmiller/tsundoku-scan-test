@@ -14,6 +14,7 @@ class TsundokuScan {
     this.endpoint = null;
     this.onSession = opts.onSession || null;
     this.onResult = opts.onResult || null;
+    this.onStatus = opts.onStatus || null;
     this.onError = opts.onError || null;
     this.onClose = opts.onClose || null;
   }
@@ -44,6 +45,8 @@ class TsundokuScan {
           resolve(data);
         } else if (data.action === "result") {
           if (this.onResult) this.onResult(data);
+        } else if (data.action === "status") {
+          if (this.onStatus) this.onStatus(data);
         } else if (data.action === "error") {
           if (this.onError) this.onError(data);
         }

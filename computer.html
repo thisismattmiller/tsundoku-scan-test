@@ -73,10 +73,19 @@
       background: #fef2f2;
       border-left-color: #ef4444;
     }
+    .result-item.status {
+      background: #fffbeb;
+      border-left-color: #f59e0b;
+    }
     .result-item .timestamp {
       font-size: 0.75rem;
       color: #888;
       margin-bottom: 4px;
+    }
+    .result-item .meta {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 6px;
     }
     .info { font-size: 0.85rem; color: #666; margin-top: 8px; }
     #connection-id { font-family: monospace; font-size: 0.85rem; color: #888; }
@@ -123,12 +132,12 @@
       el.className = cls;
     }
 
-    function addResult(data, isError = false) {
+    function addResult(data, type = "result") {
       const container = document.getElementById("results");
       if (container.querySelector(".info")) container.innerHTML = "";
 
       const div = document.createElement("div");
-      div.className = "result-item" + (isError ? " error" : "");
+      div.className = "result-item" + (type === "error" ? " error" : type === "status" ? " status" : "");
 
       const ts = document.createElement("div");
       ts.className = "timestamp";
@@ -136,10 +145,18 @@
       div.appendChild(ts);
 
       const body = document.createElement("div");
-      if (isError) {
+      if (type === "error") {
         body.textContent = (data.error || "error") + ": " + (data.message || data.error || "Unknown error");
+      } else if (type === "status") {
+        body.textContent = data.status;
       } else {
         body.textContent = JSON.stringify(data.data, null, 2);
+        if (data.meta) {
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = "tokens in: " + data.meta.input_tokens + " / out: " + data.meta.output_tokens + " — " + data.meta.model;
+          div.appendChild(meta);
+        }
       }
       div.appendChild(body);
 
@@ -166,12 +183,14 @@
           btn.disabled = false;
         },
         onResult: (data) => {
-          addResult(data);
+          addResult(data, "result");
+        },
+        onStatus: (data) => {
+          addResult(data, "status");
         },
         onError: (err) => {
-          // Processing errors have category/message, WebSocket errors don't
           if (err.category) {
-            addResult(err, true);
+            addResult(err, "error");
           } else {
             setStatus("Error: " + (err.message || "connection failed"), "error");
             btn.disabled = false;
