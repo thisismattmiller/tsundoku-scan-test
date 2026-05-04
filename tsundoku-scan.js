@@ -132,6 +132,23 @@ class TsundokuScan {
     const resp = await fetch(retrieveUrl);
     return resp.json();
   }
+
+  /**
+   * Get a presigned URL for the original scanned image.
+   * @param {string} processUrl - base URL of the process API
+   * @param {string} resourceId - the resource ID
+   * @param {string} category - cover, copyright, title_page, etc.
+   * @param {number} [index] - 1-based page index (for TOC pages)
+   * @returns {object} { url, key, expires_in } or { error } if not found
+   */
+  static async imageUrl(processUrl, resourceId, category, index) {
+    let qs = "?rid=" + encodeURIComponent(resourceId) +
+      "&category=" + encodeURIComponent(category);
+    if (index) qs += "&index=" + encodeURIComponent(index);
+    const url = processUrl.replace(/\/process$/, "/image") + qs;
+    const resp = await fetch(url);
+    return resp.json();
+  }
 }
 
 /**

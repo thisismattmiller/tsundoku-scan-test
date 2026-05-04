@@ -564,27 +564,71 @@
     }
 
     // Send bundled TOC pages
+    function dataUrlToBlob(dataUrl) {
+      const [header, b64] = dataUrl.split(",");
+      const mime = header.match(/:(.*?);/)[1];
+      const bytes = atob(b64);
+      const arr = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+
     async function sendTocBundle() {
       const btn = document.getElementById("toc-send-btn");
       btn.disabled = true;
-      showToast("Sending " + tocPages.length + " pages...");
+      const count = tocPages.length;
+      showToast("Requesting upload URLs...");
 
       try {
-        const resp = await fetch(PROCESS_URL, {
+        // Step 1: get presigned upload URLs
+        const uploadEndpoint = PROCESS_URL.replace(/\/process$/, "/upload");
+        const uploadResp = await fetch(uploadEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rid: pairingData.resourceId || "",
+            category: "toc",
+            count: count,
+          }),
+        });
+        const uploadData = await uploadResp.json();
+        if (uploadData.error) {
+          showToast("Error: " + uploadData.error, 3000);
+          btn.disabled = false;
+          return;
+        }
+        const uploads = uploadData.uploads;
+
+        // Step 2: PUT each photo to S3 in parallel
+        showToast("Uploading " + count + " pages...");
+        await Promise.all(uploads.map((u, i) => {
+          const blob = dataUrlToBlob(tocPages[i]);
+          return fetch(u.url, {
+            method: "PUT",
+            headers: { "Content-Type": "image/jpeg" },
+            body: blob,
+          }).then((r) => {
+            if (!r.ok) throw new Error("Upload failed: " + r.status);
+          });
+        }));
+
+        // Step 3: trigger processing with the s3 keys
+        showToast("Processing...");
+        const procResp = await fetch(PROCESS_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             connectionId: pairingData.connectionId,
-            images: tocPages,
+            s3_keys: uploads.map((u) => u.key),
             category: selectedCategory,
             resourceId: pairingData.resourceId || "",
           }),
         });
-        const result = await resp.json();
+        const result = await procResp.json();
         if (result.error) {
           showToast("Error: " + result.error, 3000);
         } else {
-          showToast("Sent " + tocPages.length + " pages!");
+          showToast("Sent " + count + " pages!");
           tocPages = [];
           updateTocCount();
         }
