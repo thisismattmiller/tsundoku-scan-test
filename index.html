@@ -108,10 +108,6 @@
     }
     .cat-btn:active { transform: scale(0.92); }
     .cat-btn:disabled { opacity: 0.3; }
-    .cat-btn.ocr {
-      background: rgba(245,158,11,0.3);
-      border-color: rgba(245,158,11,0.5);
-    }
 
     /* TOC page counter */
     .toc-bar {
@@ -281,13 +277,14 @@
     <div class="toast" id="toast"></div>
     <div class="camera-overlay">
       <div class="category-row">
+        <button class="cat-btn" data-cat="cover" data-multi="false">Cover</button>
+        <button class="cat-btn" data-cat="summary" data-multi="false">Summary</button>
         <button class="cat-btn selected" data-cat="title_page" data-multi="false">Title<br>Page</button>
         <button class="cat-btn" data-cat="copyright" data-multi="false">Copyright</button>
+        <span></span>
+        <button class="cat-btn" data-cat="ocr" data-multi="false">Just<br>OCR</button>
         <button class="cat-btn" data-cat="toc" data-multi="true">TOC</button>
-        <button class="cat-btn" data-cat="summary" data-multi="false">Summary</button>
-        <button class="cat-btn" data-cat="cover" data-multi="false">Cover</button>
         <button class="cat-btn" data-cat="back_cover" data-multi="false">Back<br>Cover</button>
-        <button class="cat-btn ocr" data-cat="ocr" data-multi="false">Just<br>OCR</button>
       </div>
       <div class="toc-bar" id="toc-bar">
         <button class="toc-reset-btn" id="toc-reset-btn" onclick="resetToc()" disabled>Reset</button>
