@@ -83,25 +83,35 @@
       background: linear-gradient(transparent, rgba(0,0,0,0.7) 30%);
     }
     .category-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
-      justify-content: center;
-      flex-wrap: wrap;
     }
     .cat-btn {
       background: rgba(255,255,255,0.15);
-      color: #ddd;
-      border: 1.5px solid rgba(255,255,255,0.25);
-      padding: 10px 18px;
-      border-radius: 20px;
-      font-size: 0.9rem;
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      padding: 14px 4px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
       cursor: pointer;
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       transition: transform 0.1s;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.1;
     }
     .cat-btn:active { transform: scale(0.92); }
     .cat-btn:disabled { opacity: 0.3; }
+    .cat-btn.ocr {
+      background: rgba(245,158,11,0.3);
+      border-color: rgba(245,158,11,0.5);
+    }
 
     /* TOC page counter */
     .toc-bar {
@@ -271,12 +281,13 @@
     <div class="toast" id="toast"></div>
     <div class="camera-overlay">
       <div class="category-row">
-        <button class="cat-btn selected" data-cat="copyright" data-multi="false">Copyright</button>
+        <button class="cat-btn selected" data-cat="title_page" data-multi="false">Title<br>Page</button>
+        <button class="cat-btn" data-cat="copyright" data-multi="false">Copyright</button>
         <button class="cat-btn" data-cat="toc" data-multi="true">TOC</button>
-        <button class="cat-btn" data-cat="back_cover" data-multi="false">Back Cover</button>
-        <button class="cat-btn" data-cat="cover" data-multi="false">Cover</button>
-        <button class="cat-btn" data-cat="title_page" data-multi="false">Title Page</button>
         <button class="cat-btn" data-cat="summary" data-multi="false">Summary</button>
+        <button class="cat-btn" data-cat="cover" data-multi="false">Cover</button>
+        <button class="cat-btn" data-cat="back_cover" data-multi="false">Back<br>Cover</button>
+        <button class="cat-btn ocr" data-cat="ocr" data-multi="false">Just<br>OCR</button>
       </div>
       <div class="toc-bar" id="toc-bar">
         <button class="toc-reset-btn" id="toc-reset-btn" onclick="resetToc()" disabled>Reset</button>
@@ -568,7 +579,7 @@
           body: JSON.stringify({
             connectionId: pairingData.connectionId,
             images: tocPages,
-            category: "toc",
+            category: selectedCategory,
             resourceId: pairingData.resourceId || "",
           }),
         });
