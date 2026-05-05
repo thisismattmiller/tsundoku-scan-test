@@ -507,13 +507,17 @@
     }
 
     async function onBarcodeScanned(decodedText) {
+      // Strip whitespace — LCCN barcodes often encode a leading space
+      const cleaned = (decodedText || "").replace(/\s+/g, "");
+      if (!cleaned) return;
+
       await barcodeScanner.stop();
       barcodeScanner = null;
       pairingData = {
         connectionId: null,
-        resourceId: decodedText,
+        resourceId: cleaned,
       };
-      document.getElementById("resource-id").textContent = decodedText;
+      document.getElementById("resource-id").textContent = cleaned;
       showStep("step-camera");
       startCamera();
     }
