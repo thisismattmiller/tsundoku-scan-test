@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Tsundoku Scan</title>
+  <title>Marva Scan</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; }
@@ -63,8 +63,8 @@
     }
     .scan-home-btn {
       position: absolute;
-      top: 12px;
-      left: 12px;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      left: 16px;
       background: rgba(255,255,255,0.1);
       color: #eee;
       border: 1px solid rgba(255,255,255,0.2);
@@ -256,7 +256,7 @@
 <body>
   <!-- Step: Mode selector -->
   <div id="step-mode" class="step active">
-    <h1>Tsundoku Scan</h1>
+    <h1>Marva Scan</h1>
     <button class="mode-btn" onclick="startLiveMode()">
       <div class="mode-title">Live Session</div>
       <div class="mode-desc">Scan QR code from computer to pair</div>
