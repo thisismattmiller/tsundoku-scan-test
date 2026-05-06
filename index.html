@@ -47,6 +47,7 @@
       justify-content: center;
       background: #1a1a2e;
       padding: 20px;
+      position: relative;
     }
     #step-scan h1 { font-size: 1.2rem; margin-bottom: 16px; }
     #qr-reader { width: 100%; max-width: 400px; }
@@ -58,6 +59,19 @@
       justify-content: center;
       background: #1a1a2e;
       padding: 20px;
+      position: relative;
+    }
+    .scan-home-btn {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(255,255,255,0.1);
+      color: #eee;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
     }
     #step-barcode h1 { font-size: 1.2rem; margin-bottom: 16px; }
     #barcode-reader { width: 100%; max-width: 400px; }
@@ -255,6 +269,7 @@
 
   <!-- Step: QR Scanner (live mode) -->
   <div id="step-scan" class="step">
+    <button class="scan-home-btn" onclick="goHome()">← Home</button>
     <h1>Scan QR Code</h1>
     <div id="qr-reader"></div>
     <div id="scan-status">Point your camera at the QR code</div>
@@ -262,6 +277,7 @@
 
   <!-- Step: Barcode Scanner (offline mode) -->
   <div id="step-barcode" class="step">
+    <button class="scan-home-btn" onclick="goHome()">← Home</button>
     <h1>Scan Book Barcode</h1>
     <div id="barcode-reader"></div>
     <div id="barcode-status">Point your camera at the book's barcode</div>
@@ -410,6 +426,22 @@
       updateTocCount();
       showStep("step-barcode");
       startBarcodeScanner();
+    }
+
+    async function goHome() {
+      if (qrScanner) {
+        try { await qrScanner.stop(); } catch {}
+        qrScanner = null;
+      }
+      if (barcodeScanner) {
+        try { await barcodeScanner.stop(); } catch {}
+        barcodeScanner = null;
+      }
+      if (camera) camera.stop();
+      pairingData = null;
+      tocPages = [];
+      window.history.replaceState({}, "", window.location.pathname);
+      showStep("step-mode");
     }
 
     // ---- QR scanning (live mode) ----
